@@ -1,79 +1,111 @@
-require("dotenv").config(); // Load environment variables
 const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const userRoutes = require("./routes/userRoutes"); // Import routes
+const router = express.Router();
+const User = require("../models/userModel");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
-const app = express();
-const PORT = process.env.PORT || 5001;
+// Register User
+router.post("/register", async (req, res) => {
+  try {
+    const { fullName, username, email, password } = req.body;
 
-// Middleware
-app.use(express.json()); // Parse JSON body
-app.use(cors()); // Enable CORS for cross-origin requests
+    // Check if user exists
+    let userExists = await User.findOne({ $or: [{ email }, { username }] });
+    if (userExists) {
+      return res.status(400).json({ message: "Email or username already exists" });
+    }
 
-// Database Connection
-mongoose
-  .connect(process.env.MONGO_URI, {
+    // Hash Password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  })
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch((error) => console.error("❌ MongoDB Connection Error:", error));
+    // Create New User
+    const newUser = new User({
+      fullName,
+      username,
+      email,
+      password: hashedPassword,
+    });
 
-// API Routes
-app.use("/api", userRoutes); // Mount user routes at /api
-
-// Default Route
-// app.get("/", (req, res) => {
-//   res.send("API is running...");
-// });
-
-// app.get("/", (req, res) => {
-//   res.send(`
-//     <html>
-//       <body style="text-align:center;">
-//         <h1>API is running...</h1>
-//         <img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXdkcnE0b25vc2p5NWlyeGVnYzY2OWhyNHY4bjB0ZWgydnJ0ZWtrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yASFCj2K0MGeASqSom/giphy.gif" />
-//       </body>
-//     </html>
-//   `);
-// });
-
-app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-        <style>
-          body {
-            font-family: 'Roboto', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-          }
-          .container {
-            text-align: center;
-          }
-          img {
-            width: 200px; /* Adjust size */
-            height: auto;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>API is running...</h1>
-          <img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXdkcnE0b25vc2p5NWlyeGVnYzY2OWhyNHY4bjB0ZWgydnJ0ZWtrZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/yASFCj2K0MGeASqSom/giphy.gif" />
-        </div>
-      </body>
-    </html>
-  `);
+    await newUser.save();
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
 
+// Login User
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
+    // Find User
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid email or password" });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+    // Compare Password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
+
+    // Generate Token
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    res.json({ token, user });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 });
+
+// Fetch All Users
+router.get("/users", async (req, res) => {
+  try {
+    const users = await User.find().select("-password"); // Exclude password from response
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Get One User by Username
+router.get("/users/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Update User
+router.put("/users/:id", async (req, res) => {
+  try {
+    const { fullName, username, email } = req.body;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { fullName, username, email },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User updated successfully", updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// Delete User
+router.delete("/users/:id", async (req, res) => {
+  try {
+    const deletedUser = await User.findByIdAndDelete(req.params.id);
+    if (!deletedUser) return res.status(404).json({ message: "User not found" });
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+module.exports = router;
