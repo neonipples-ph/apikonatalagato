@@ -7,7 +7,20 @@ const jwt = require("jsonwebtoken");
 // Register User
 router.post("/register", async (req, res) => {
   try {
-    const { fullName, username, email, password } = req.body;
+    const {
+      fullName,
+      username,
+      email,
+      password,
+      course,
+      school,
+      dateOfBirth,
+      gender,
+      address,
+      favoriteColor,
+      favoriteBandOrSinger,
+      favoriteSong
+    } = req.body;
 
     // Check if user exists
     let userExists = await User.findOne({ $or: [{ email }, { username }] });
@@ -25,6 +38,16 @@ router.post("/register", async (req, res) => {
       username,
       email,
       password: hashedPassword,
+      age: 19,
+      course,
+      school,
+      dateOfBirth,
+      joinedAt: Date.now(),
+      gender,
+      address,
+      favoriteColor,
+      favoriteBandOrSinger,
+      favoriteSong
     });
 
     await newUser.save();
@@ -33,6 +56,7 @@ router.post("/register", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // Login User
 router.post("/login", async (req, res) => {
