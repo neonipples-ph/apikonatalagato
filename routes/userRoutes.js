@@ -78,15 +78,23 @@ router.get("/users/:username", async (req, res) => {
   }
 });
 
-// Update User
+// Update User (including password)
 router.put("/users/:id", async (req, res) => {
   try {
-    const { fullName, username, email } = req.body;
+    const { fullName, username, email, password } = req.body;
+    let updateFields = { fullName, username, email };
+
+    // If password is provided, hash it before updating
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateFields.password = await bcrypt.hash(password, salt);
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { fullName, username, email },
+      updateFields,
       { new: true, runValidators: true }
-    ).select("-password");
+    ).select("-password"); // Exclude password from response
 
     if (!updatedUser) return res.status(404).json({ message: "User not found" });
 
@@ -95,6 +103,7 @@ router.put("/users/:id", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // Delete User
 router.delete("/users/:id", async (req, res) => {
