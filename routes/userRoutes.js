@@ -22,6 +22,11 @@ router.post("/register", async (req, res) => {
       favoriteSong
     } = req.body;
 
+    // Ensure password is provided
+    if (!password) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
     // Check if user exists
     let userExists = await User.findOne({ $or: [{ email }, { username }] });
     if (userExists) {
