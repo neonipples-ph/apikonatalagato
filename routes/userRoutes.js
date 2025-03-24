@@ -60,6 +60,14 @@ router.post("/register", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
+  try {
+    console.log("Connecting to DB...");
+    await newUser.save();
+    console.log("User saved successfully");
+  } catch (error) {
+    console.error("Error saving user:", error);
+  }
+  
 });
 
 
