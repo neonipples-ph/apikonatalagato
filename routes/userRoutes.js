@@ -77,7 +77,7 @@ router.post("/login", async (req, res) => {
 // Fetch All Users
 router.get("/users", async (req, res) => {
   try {
-    const users = await User.find().select("fullName username email age course school dateOfBirth joinedAt gender address favoriteColor favoriteBandOrSinger favoriteSong");
+    const users = await User.find().select("fullName username email age course dateOfBirth joinedAt gender");
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
