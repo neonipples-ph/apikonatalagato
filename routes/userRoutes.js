@@ -96,11 +96,11 @@ router.get("/users/:username", async (req, res) => {
   }
 });
 
-// Update User (including password)
+// Update User (including gender and course)
 router.put("/users/:id", async (req, res) => {
   try {
-    const { fullName, username, email, password } = req.body;
-    let updateFields = { fullName, username, email };
+    const { fullName, username, email, password, gender, course } = req.body;
+    let updateFields = { fullName, username, email, gender, course }; // Include gender and course
 
     // If password is provided, hash it before updating
     if (password) {
@@ -121,6 +121,7 @@ router.put("/users/:id", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 
 // Delete User
