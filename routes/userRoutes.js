@@ -35,17 +35,17 @@ router.post("/register", async (req, res) => {
       username,
       email,
       password: hashedPassword,
+      age: 19,
       course,
       dateOfBirth,
-      gender,
-      joinedAt: Date.now()
+      joinedAt: Date.now(),
+      gender
     });
 
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
@@ -54,34 +54,35 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
+
     if (!user) return res.status(400).json({ message: "Invalid email or password" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid email or password" });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
     res.json({ token, user });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// Fetch All Users (Requires Authentication)
-router.get("/users", authenticateToken, async (req, res) => {
+// Fetch All Users
+router.get("/users", async (req, res) => {
   try {
-    const users = await User.find().select("fullName username email course dateOfBirth gender joinedAt");
+    const users = await User.find().select("fullName username email age course dateOfBirth joinedAt gender");
     res.json(users);
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// Add User (Requires Authentication)
+// Add User (Requires Token)
 router.post("/users", authenticateToken, async (req, res) => {
   try {
     const { fullName, username, email, password, course, dateOfBirth, gender } = req.body;
+
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
@@ -108,29 +109,30 @@ router.post("/users", authenticateToken, async (req, res) => {
     await newUser.save();
     res.status(201).json({ message: "User added successfully" });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// Get One User by Username (Requires Authentication)
-router.get("/users/:username", authenticateToken, async (req, res) => {
+// Get One User by Username
+router.get("/users/:username", async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select("-password");
     if (!user) return res.status(404).json({ message: "User not found" });
+
     res.json(user);
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// Update User (Requires Authentication)
-router.put("/users/:id", authenticateToken, async (req, res) => {
-  try {
-    const { fullName, username, email, password, gender, course } = req.body;
-    let updateFields = { fullName, username, email, gender, course };
 
+//update the password too
+router.put("/users/:id", async (req, res) => {
+  try {
+    const { fullName, username, email, password } = req.body;
+    let updateFields = { fullName, username, email };
+
+    // If password is provided, hash it before updating
     if (password) {
       const salt = await bcrypt.genSalt(10);
       updateFields.password = await bcrypt.hash(password, salt);
@@ -140,25 +142,25 @@ router.put("/users/:id", authenticateToken, async (req, res) => {
       req.params.id,
       updateFields,
       { new: true, runValidators: true }
-    ).select("-password");
+    ).select("-password"); // Exclude password from response
 
     if (!updatedUser) return res.status(404).json({ message: "User not found" });
+
     res.json({ message: "User updated successfully", updatedUser });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-// Delete User (Requires Authentication)
+// Delete User (Requires Token)
 router.delete("/users/:id", authenticateToken, async (req, res) => {
   try {
     const deletedUser = await User.findByIdAndDelete(req.params.id);
     if (!deletedUser) return res.status(404).json({ message: "User not found" });
+
     res.json({ message: "User deleted successfully" });
   } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ message: "Server error", error: error.message, stack: error.stack });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
