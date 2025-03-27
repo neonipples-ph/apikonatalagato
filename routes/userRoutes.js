@@ -83,35 +83,45 @@ router.post("/users", authenticateToken, async (req, res) => {
   try {
     const { fullName, username, email, password, course, dateOfBirth, gender } = req.body;
 
+    // Ensure the request is authenticated
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized. Please log in." });
+    }
+
+    // Validate input
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
 
+    // Check if email or username already exists
     let userExists = await User.findOne({ $or: [{ email }, { username }] });
     if (userExists) {
       return res.status(400).json({ message: "Email or username already exists" });
     }
 
+    // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Create a new user
     const newUser = new User({
       fullName,
       username,
       email,
-      password: hashedPassword,
+      password: hashedPassword, // Store hashed password
       course,
       dateOfBirth,
       gender,
-      joinedAt: Date.now()
+      joinedAt: Date.now(),
     });
 
     await newUser.save();
-    res.status(201).json({ message: "User added successfully" });
+    res.status(201).json({ message: "User added successfully", newUser });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // Get One User by Username
 router.get("/users/:username", async (req, res) => {
