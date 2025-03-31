@@ -68,8 +68,8 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Fetch All Users
-router.get("/users", async (req, res) => {
+// Fetch All Users (Requires Token)
+router.get("/users", authenticateToken, async (req, res) => {
   try {
     const users = await User.find().select("fullName username email age course dateOfBirth joinedAt gender");
     res.json(users);
@@ -77,6 +77,7 @@ router.get("/users", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // Add User (Requires Token)
 router.post("/users", authenticateToken, async (req, res) => {
